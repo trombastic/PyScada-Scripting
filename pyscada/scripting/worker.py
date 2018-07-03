@@ -61,13 +61,11 @@ except:
                 return None
 
 
-
 class ScriptingProcess(BaseProcess):
     def __init__(self, dt=5, **kwargs):
         self.script_id = 0
         self.error_count = 0
-        self.data = None
-        self.variables = None
+        self.variables = []
         self.script_file = None
         super(ScriptingProcess, self).__init__(dt=dt, **kwargs)
         self.script = import_module_from_file(self, self.script_file, 'script')
@@ -271,6 +269,7 @@ class ScriptingProcess(BaseProcess):
         to be overwritten by the script
         :return:
         """
+
 
 class MasterProcess(BaseProcess):
     """
