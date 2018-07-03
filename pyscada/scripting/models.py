@@ -37,7 +37,7 @@ class Script(models.Model):
     script_file = models.CharField(max_length=255, default='', help_text='')
 
     def __str__(self):
-        return '%s: (%s | %s)'%(self.label,self.script_file, self.class_name)
+        return '%s: (%s | %s)'%(self.label,self.script_file)
 
 
 

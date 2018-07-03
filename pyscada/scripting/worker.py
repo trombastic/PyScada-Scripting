@@ -3,10 +3,11 @@
 
 from __future__ import unicode_literals
 
-from pyscada.models import BackgroundProcess, Variable, RecordedData, DeviceWriteTask
+from pyscada.models import BackgroundProcess, Variable, RecordedData, DeviceWriteTask, VariableProperty
 from pyscada.scripting.models import Script
 import numpy as np
 from pyscada.utils.scheduler import Process as BaseProcess
+
 from os import getpid
 import traceback
 
@@ -24,11 +25,13 @@ try:
     from importlib.util import spec_from_file_location, module_from_spec
     from types import MethodType
 
-    def import_module_from_file(inst, file_name):
+    def import_module_from_file(inst, file_name, func_name):
         spec = spec_from_file_location('pyscada.scripting.user_script', file_name)
-        foo = module_from_spec(spec)
-        spec.loader.exec_module(foo)
-        return MethodType(getattr(foo, 'script').script, inst)
+        mod = module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        if not hasattr(mod, func_name):
+            return None
+        return MethodType(getattr(mod, func_name), inst)
 
 except:
     try:
@@ -36,19 +39,22 @@ except:
         from importlib.machinery import SourceFileLoader
         from types import MethodType
 
-        def import_module_from_file(inst, file_name):
-            foo = SourceFileLoader('pyscada.scripting.user_script', file_name).load_module()
-            return MethodType(getattr(foo, 'script').script, inst)
+        def import_module_from_file(inst, file_name, func_name):
+            mod = SourceFileLoader('pyscada.scripting.user_script', file_name).load_module()
+            if not hasattr(mod, func_name):
+                return None
+            return MethodType(getattr(mod, func_name), inst)
     except:
         try:
             # Python 2.7
             import imp
             from new import instancemethod
 
-            def import_module_from_file(inst, file_name):
-                foo = imp.load_source('pyscada.scripting.user_script', file_name)
-
-                return instancemethod(getattr(foo, 'script'), inst, None)
+            def import_module_from_file(inst, file_name, func_name):
+                mod = imp.load_source('pyscada.scripting.user_script', file_name)
+                if not hasattr(mod,func_name):
+                    return None
+                return instancemethod(getattr(mod, func_name), inst, None)
         except:
 
             def import_module_from_file(inst, file_name):
@@ -64,7 +70,20 @@ class ScriptingProcess(BaseProcess):
         self.variables = None
         self.script_file = None
         super(ScriptingProcess, self).__init__(dt=dt, **kwargs)
-        self.script = import_module_from_file(self, self.script_file)
+        self.script = import_module_from_file(self, self.script_file, 'script')
+        self.startup = import_module_from_file(self, self.script_file, 'startup')
+        self.shutdown = import_module_from_file(self, self.script_file, 'shutdown')
+        self.data = {} # todo not implemented yet
+
+    def cov_handler(self,instance, timestamp, value,**kwargs):
+        """
+
+        :param instance:
+        :param timestamp:
+        :param value:
+        :return:
+        """
+        self.data[instance.name] = [timestamp,value]
 
     def read_values_from_db(self, variable_names, time_from=time()-60, time_to=time(), mean_value_period=0, no_mean_value=True,
                             add_latest_value=True, query_first_value=True, current_value_only=False):
@@ -163,6 +182,39 @@ class ScriptingProcess(BaseProcess):
                     if recorded_data_element is not None:
                         self.data.append(recorded_data_element)
 
+    def write_variable_property(self, variable_name, property_name, value, **kwargs):
+        """
+        creates or writes a variable property
+        :param variable_name: name of the Variable the property belongs to
+        :param property_name: name of the property
+        :param value: value
+        :param kwargs:
+        :return: VariableProperty object
+        """
+        if variable_name in self.variables:
+            variable = self.variables[variable_name]
+        else:
+            variable = Variable.objects.filter(name=variable_name).first()
+        return VariableProperty.objects.update_or_create_property(variable=variable,name=property_name,value=value,
+                                                                  **kwargs)
+
+    def read_variable_property(self,variable_name, property_name, **kwargs):
+        """
+        reads the value from a variable property if existing or None
+        :param variable_name: name of the Variable the property belongs to
+        :param property_name: name of the property
+        :param kwargs:
+        :return: property value
+        """
+        if variable_name in self.variables:
+            variable = self.variables[variable_name]
+        else:
+            variable = Variable.objects.filter(name=variable_name).first()
+        vp = VariableProperty.objects.get_property(variable=variable, name=property_name, **kwargs)
+        if vp:
+            return vp.value()
+        return None
+
     def loop(self):
         """
         this is a script loop
@@ -174,10 +226,32 @@ class ScriptingProcess(BaseProcess):
             self.error_count = 0 # reset error count
         except:
             self.error_count += 1
-            logger.error('%s(%d), unhandled exception\n%s' % (self.label, getpid(), traceback.format_exc()))
+            logger.error('%s(%d), unhandled exception in script\n%s' % (self.label, getpid(), traceback.format_exc()))
         if self.error_count > 3:
             return 0, None
         return 1, self.data
+
+    def init_process(self):
+        """
+
+        :return:
+        """
+        try:
+            if self.startup:
+                self.startup()
+        except:
+            logger.error('%s(%d), unhandled exception in startup\n%s' % (self.label, getpid(), traceback.format_exc()))
+
+    def cleanup(self):
+        """
+
+        :return:
+        """
+        try:
+            if self.shutdown:
+                self.shutdown()
+        except:
+            logger.error('%s(%d), unhandled exception in shutdown\n%s' % (self.label, getpid(), traceback.format_exc()))
 
     def script(self):
         """
@@ -186,6 +260,17 @@ class ScriptingProcess(BaseProcess):
         """
         pass
 
+    def startup(self):
+        """
+        to be overwritten by the script
+        :return:
+        """
+
+    def shutdown(self):
+        """
+        to be overwritten by the script
+        :return:
+        """
 
 class MasterProcess(BaseProcess):
     """

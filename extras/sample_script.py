@@ -7,9 +7,25 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def startup(self):
+    """
+    write your code startup code here, don't change the name of this function
+    :return:
+    """
+    pass
+
+
+def shutdown(self):
+    """
+    write your code shutdown code here, don't change the name of this function
+    :return:
+    """
+    pass
+
+
 def script(self):
     """
-    write your code here, don't change the name of this function
+    write your code loop code here, don't change the name of this function
 
     :return:
     """
@@ -40,3 +56,4 @@ def script(self):
     self.write_values_to_db(data={'value_3': [100, 200, 300],
                                   'value_4': [123, 333, 333],
                                   'timevalues':[1530021334.0, 1530021336.0, 1530021339.0]})
+

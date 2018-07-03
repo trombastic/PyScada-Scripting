@@ -1,2 +1,6 @@
 0.7.0rc5
   - created extension
+
+0.7.0rc6
+  - added startup and shutdown methods to script
+  - fixes AppConfig for setup.py develop

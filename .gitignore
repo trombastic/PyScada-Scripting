@@ -1,2 +1,5 @@
 *.pyc
-/pyscada_gpio.egg-info/*
+/build/*
+/dist/*
+/pyscada_scripting.egg-info/*
+/.idea/*
