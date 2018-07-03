@@ -65,7 +65,7 @@ class ScriptingProcess(BaseProcess):
     def __init__(self, dt=5, **kwargs):
         self.script_id = 0
         self.error_count = 0
-        self.variables = []
+        self.variables = {}
         self.script_file = None
         super(ScriptingProcess, self).__init__(dt=dt, **kwargs)
         self.script = import_module_from_file(self, self.script_file, 'script')
@@ -175,6 +175,8 @@ class ScriptingProcess(BaseProcess):
                 variable = Variable.objects.filter(name=variable_name).first()
                 self.variables[variable_name] = variable
             for i in range(len(items)):
+                if not variable:
+                    continue
                 if variable.update_value(items[i], time() if timevalues is None else timevalues[i]):
                     recorded_data_element = variable.create_recorded_data_element()
                     if recorded_data_element is not None:
@@ -208,6 +210,8 @@ class ScriptingProcess(BaseProcess):
             variable = self.variables[variable_name]
         else:
             variable = Variable.objects.filter(name=variable_name).first()
+        if not variable:
+            return None
         vp = VariableProperty.objects.get_property(variable=variable, name=property_name, **kwargs)
         if vp:
             return vp.value()
