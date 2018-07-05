@@ -223,7 +223,7 @@ class ScriptingProcess(BaseProcess):
         :return:
         """
         try:
-            if self.script:
+            if self.script is not None:
                 self.script()
             self.error_count = 0 # reset error count
         except:
@@ -239,7 +239,7 @@ class ScriptingProcess(BaseProcess):
         :return:
         """
         try:
-            if self.startup:
+            if self.startup is not None:
                 self.startup()
         except:
             logger.error('%s(%d), unhandled exception in startup\n%s' % (self.label, getpid(), traceback.format_exc()))
@@ -250,10 +250,12 @@ class ScriptingProcess(BaseProcess):
         :return:
         """
         try:
-            if self.shutdown:
+            if self.shutdown is not None:
                 self.shutdown()
         except:
             logger.error('%s(%d), unhandled exception in shutdown\n%s' % (self.label, getpid(), traceback.format_exc()))
+        # delete the background process entry
+        BackgroundProcess.objects.filter(pk=self.process_id).delete()
 
     def script(self):
         """
@@ -267,12 +269,14 @@ class ScriptingProcess(BaseProcess):
         to be overwritten by the script
         :return:
         """
+        pass
 
     def shutdown(self):
         """
         to be overwritten by the script
         :return:
         """
+        pass
 
 
 class MasterProcess(BaseProcess):

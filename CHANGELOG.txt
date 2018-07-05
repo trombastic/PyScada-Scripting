@@ -4,3 +4,7 @@
 0.7.0rc6
   - added startup and shutdown methods to script
   - fixes AppConfig for setup.py develop
+
+0.7.0rc8
+  - fixed worker
+  - added extras/device-write-task_to_variable-property.py
