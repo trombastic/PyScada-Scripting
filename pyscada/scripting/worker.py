@@ -229,9 +229,15 @@ class ScriptingProcess(BaseProcess):
         except:
             self.error_count += 1
             logger.error('%s(%d), unhandled exception in script\n%s' % (self.label, getpid(), traceback.format_exc()))
+
         if self.error_count > 3:
             return 0, None
-        return 1, self.data
+
+        if isinstance(self.data, list):
+            if len(self.data) > 0:
+                return 1, [self.data, ]
+
+        return 1, None
 
     def init_process(self):
         """
