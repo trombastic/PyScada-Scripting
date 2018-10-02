@@ -72,8 +72,9 @@ class ScriptingProcess(BaseProcess):
         self.startup = import_module_from_file(self, self.script_file, 'startup')
         self.shutdown = import_module_from_file(self, self.script_file, 'shutdown')
         self.data = {} # todo not implemented yet
+        self._tmpdata = []
 
-    def cov_handler(self,instance, timestamp, value,**kwargs):
+    def cov_handler(self,instance, timestamp, value, **kwargs):
         """
 
         :param instance:
@@ -81,10 +82,11 @@ class ScriptingProcess(BaseProcess):
         :param value:
         :return:
         """
-        self.data[instance.name] = [timestamp,value]
+        self.data[instance.name] = [timestamp, value]
 
-    def read_values_from_db(self, variable_names, time_from=time()-60, time_to=time(), mean_value_period=0, no_mean_value=True,
-                            add_latest_value=True, query_first_value=True, current_value_only=False):
+    def read_values_from_db(self, variable_names, time_from=None, time_to=None, mean_value_period=0,
+                            no_mean_value=True, add_latest_value=True, query_first_value=True,
+                            current_value_only=False):
         """
         read data from the database
         :param current_value_only:
@@ -97,6 +99,12 @@ class ScriptingProcess(BaseProcess):
         :param query_first_value:
         :return: list of numpy arrays
         """
+        if time_from is None:
+            time_from = time() - 60
+
+        if time_to is None:
+            time_to=time()
+
         variables = Variable.objects.filter(name__in=variable_names)
         """
         for variable in variables:
@@ -124,9 +132,10 @@ class ScriptingProcess(BaseProcess):
 
         return data
 
-    def write_value_to_device(self, variable_name, value, time_start=time(), user=None, blocking=False, timeout=60):
+    def write_value_to_device(self, variable_name, value, time_start=None, user=None, blocking=False, timeout=60):
         """
 
+        :param timeout:
         :param variable_name:
         :param value:
         :param time_start:
@@ -134,6 +143,9 @@ class ScriptingProcess(BaseProcess):
         :param blocking: wait until write succeeded
         :return:
         """
+        if time_start is None:
+            time_start = time()
+
         if variable_name in self.variables:
             variable = self.variables[variable_name]
         else:
@@ -163,11 +175,11 @@ class ScriptingProcess(BaseProcess):
         :param data: dict with values
         :return:
         """
-        self.data = []
         if 'timevalues' in data:
             timevalues = data['timevalues']
         else:
             timevalues = None
+
         for variable_name, items in data.items():
             if variable_name in self.variables:
                 variable = self.variables[variable_name]
@@ -180,7 +192,7 @@ class ScriptingProcess(BaseProcess):
                 if variable.update_value(items[i], time() if timevalues is None else timevalues[i]):
                     recorded_data_element = variable.create_recorded_data_element()
                     if recorded_data_element is not None:
-                        self.data.append(recorded_data_element)
+                        self._tmpdata.append(recorded_data_element)
 
     def write_variable_property(self, variable_name, property_name, value, **kwargs):
         """
@@ -198,7 +210,7 @@ class ScriptingProcess(BaseProcess):
         return VariableProperty.objects.update_or_create_property(variable=variable,name=property_name,value=value,
                                                                   **kwargs)
 
-    def read_variable_property(self,variable_name, property_name, **kwargs):
+    def read_variable_property(self, variable_name, property_name, **kwargs):
         """
         reads the value from a variable property if existing or None
         :param variable_name: name of the Variable the property belongs to
@@ -222,10 +234,11 @@ class ScriptingProcess(BaseProcess):
         this is a script loop
         :return:
         """
+        self._tmpdata = []  # delete old values
         try:
             if self.script is not None:
                 self.script()
-            self.error_count = 0 # reset error count
+            self.error_count = 0  # reset error count
         except:
             self.error_count += 1
             logger.error('%s(%d), unhandled exception in script\n%s' % (self.label, getpid(), traceback.format_exc()))
@@ -233,9 +246,9 @@ class ScriptingProcess(BaseProcess):
         if self.error_count > 3:
             return 0, None
 
-        if isinstance(self.data, list):
-            if len(self.data) > 0:
-                return 1, [self.data, ]
+        if isinstance(self._tmpdata, list):
+            if len(self._tmpdata) > 0:
+                return 1, [self._tmpdata, ]
 
         return 1, None
 

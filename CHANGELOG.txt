@@ -8,3 +8,6 @@
 0.7.0rc8
   - fixed worker
   - added extras/device-write-task_to_variable-property.py
+
+0.7.0rc9
+  - fixed default values for time_from, time_to, time_start

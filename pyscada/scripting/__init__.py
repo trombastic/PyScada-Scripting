@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 
 import pyscada
 
-__version__ = '0.7.0rc8'
+__version__ = '0.7.0rc9'
 __author__ = 'Martin Schröder'
 
 default_app_config = 'pyscada.scripting.apps.PyScadaScriptingConfig'
