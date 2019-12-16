@@ -86,7 +86,7 @@ class ScriptingProcess(BaseProcess):
 
     def read_values_from_db(self, variable_names, time_from=None, time_to=None, mean_value_period=0,
                             no_mean_value=True, add_latest_value=True, query_first_value=True,
-                            current_value_only=False):
+                            current_value_only=False, blow_up=False):
         """
         read data from the database
         :param current_value_only:
@@ -117,7 +117,7 @@ class ScriptingProcess(BaseProcess):
             time_max=time_to,
             query_first_value=query_first_value,
             key_is_variable_name=True,
-            blow_up=True,
+            blow_up=blow_up,
             add_latest_value=add_latest_value,
             mean_value_period=mean_value_period if mean_value_period != 0 else 5.0,
             no_mean_value=True if mean_value_period != 0 else no_mean_value
@@ -308,6 +308,7 @@ class MasterProcess(BaseProcess):
         self.SCRIPT_PROCESSES = []
 
     def init_process(self):
+        """
         for process in BackgroundProcess.objects.filter(parent_process__pk=self.process_id, done=False):
             try:
                 kill(process.pid, 0)
@@ -320,7 +321,7 @@ class MasterProcess(BaseProcess):
 
         # clean up
         BackgroundProcess.objects.filter(parent_process__pk=self.process_id, done=False).delete()
-
+        """
         for script_process in Script.objects.filter(active=True):
             bp = BackgroundProcess(label='pyscada.scripting.ScriptingProcess-%d' % script_process.pk,
                                    message='waiting..',
@@ -339,7 +340,7 @@ class MasterProcess(BaseProcess):
         """
 
         """
-        # check if all modbus processes are running
+        # check if all scripting processes are running
         for script_process in self.SCRIPT_PROCESSES:
             try:
                 BackgroundProcess.objects.get(pk=script_process['id'])
@@ -359,7 +360,7 @@ class MasterProcess(BaseProcess):
                     script_process['id'] = bp.id
                     script_process['failed'] += 1
                 else:
-                    logger.error('process pyscada.scripting.user_script-%d failed more then 3 times' % script_process['script_id'])
+                    logger.error('process pyscada.scripting.user_script-%d failed more than 3 times' % script_process['script_id'])
             except:
                 logger.debug('%s, unhandled exception\n%s' % (self.label, traceback.format_exc()))
 
