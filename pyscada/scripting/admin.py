@@ -9,4 +9,10 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-admin_site.register(Script)
+class ScriptAdmin(admin.ModelAdmin):
+    list_display = ('id', 'label', 'active', 'interval', 'script_file',)
+    list_editable = ('label', 'active', 'interval', 'script_file', )
+    list_display_links = ('id',)
+
+
+admin_site.register(Script, ScriptAdmin)
